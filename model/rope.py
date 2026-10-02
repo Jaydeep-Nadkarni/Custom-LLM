@@ -26,20 +26,15 @@ class RotaryEmbedding(nn.Module):
     def forward(self, x, seq_len):
         cos = self.cos_cached[:seq_len]
         sin = self.sin_cached[:seq_len]
-
-        return cos, sin
-
-
-def apply_rope(x, theta=10000.0):
-    """Apply rotary position embeddings to [batch, heads, sequence, head_dim]."""
-    _, _, sequence_length, head_dim = x.shape
-    inverse_frequency = 1.0 / (
-        theta ** (torch.arange(0, head_dim, 2, device=x.device, dtype=x.dtype) / head_dim)
-    )
-    positions = torch.arange(sequence_length, device=x.device, dtype=x.dtype)
-    angles = torch.outer(positions, inverse_frequency)
-    cos = angles.cos()[None, None, :, :]
-    sin = angles.sin()[None, None, :, :]
-    even = x[..., ::2]
-    odd = x[..., 1::2]
-    return torch.stack((even * cos - odd * sin, even * sin + odd * cos), dim=-1).flatten(-2)
+        cos = cos.unsqueeze(0).unsqueeze(0)
+        sin = sin.unsqueeze(0).unsqueeze(0)
+        first = x[..., ::2]
+        second = x[..., 1::2]
+        rotated = torch.stack(
+            [
+                first * cos - second * sin,
+                first * sin + second * cos,
+            ],
+            dim=-1,
+        )
+        return rotated.flatten(-2)

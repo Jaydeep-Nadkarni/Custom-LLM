@@ -22,12 +22,10 @@ q = torch.randn(
     head_dim,
 )
 
-# Get RoPE values
-cos, sin = rope(q, sequence_length)
+# Apply RoPE rotation
+output = rope(q, sequence_length)
 
 # Print results
 print("Q shape   :", q.shape)
-print("Cos shape :", cos.shape)
-print("Sin shape :", sin.shape)
-print("Cos dtype:", cos.dtype)
-print("Sin dtype:", sin.dtype)
+print("Output shape:", output.shape)
+print("Output dtype:", output.dtype)
