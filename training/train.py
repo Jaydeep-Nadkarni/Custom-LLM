@@ -1,9 +1,13 @@
 import argparse
 from pathlib import Path
+import sys
 
 import torch
 import yaml
 from torch.utils.data import DataLoader
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT_ROOT))
 
 from data.dataset import TokenDataset
 from model.model import TransformerLM
@@ -69,10 +73,35 @@ def main() -> None:
 
 
     # -----------------------------
-    # Optimizer
+    # Training configuration
     # -----------------------------
 
     training_config = config["training"]
+
+
+    # -----------------------------
+    # Dataset
+    # -----------------------------
+
+    data_config = config["data"]
+
+    dataset = TokenDataset(
+        data_config["train_inputs"],
+        data_config["train_targets"]
+    )
+
+    dataloader = DataLoader(
+        dataset,
+        batch_size=training_config["batch_size"],
+        shuffle=True
+    )
+
+    print("Dataset size:", len(dataset))
+
+
+    # -----------------------------
+    # Optimizer
+    # -----------------------------
 
     optimizer = build_optimizer(
         model,
