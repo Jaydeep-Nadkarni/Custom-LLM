@@ -1,0 +1,15 @@
+model:
+  vocab_size: 32000
+  d_model: 768
+  n_heads: 12
+  n_layers: 12
+  hidden_dim: 2048
+  context_length: 2048
+  dropout: 0.0
+training:
+  batch_size: 4
+  steps: 100000
+  learning_rate: 0.0002
+  weight_decay: 0.1
+  warmup_steps: 4000
+  log_every: 100
