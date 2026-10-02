@@ -1,3 +1,3 @@
-from .model import DecoderLM
+from .model import TransformerLM
 
-__all__ = ["DecoderLM"]
+__all__ = ["TransformerLM"]
