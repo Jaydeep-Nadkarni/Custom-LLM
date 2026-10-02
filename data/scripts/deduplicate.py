@@ -1,25 +1,36 @@
-"""Remove duplicate lines while preserving their original order."""
+"""Remove exact duplicate documents from the cleaned JSONL corpus."""
 from pathlib import Path
-import argparse
+import json
 
 
-def deduplicate(text: str) -> str:
-    seen: set[str] = set()
-    unique = []
-    for line in text.splitlines():
-        normalized = line.strip()
-        if normalized and normalized not in seen:
-            seen.add(normalized)
-            unique.append(normalized)
-    return "\n".join(unique) + ("\n" if unique else "")
+PROJECT_ROOT = Path(__file__).parents[2]
+INPUT_FILE = PROJECT_ROOT / "data/cleaned/fineweb_cleaned.jsonl"
+OUTPUT_FILE = PROJECT_ROOT / "data/cleaned/fineweb_deduplicated.jsonl"
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("input", type=Path, default=Path(__file__).parents[1] / "cleaned/filtered.txt", nargs="?")
-    parser.add_argument("output", type=Path, default=Path(__file__).parents[1] / "cleaned/deduplicated.txt", nargs="?")
-    args = parser.parse_args()
-    args.output.write_text(deduplicate(args.input.read_text(encoding="utf-8")), encoding="utf-8")
+    OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    documents_before = 0
+    documents_after = 0
+    seen: set[str] = set()
+
+    with INPUT_FILE.open(encoding="utf-8") as source, OUTPUT_FILE.open("w", encoding="utf-8") as destination:
+        for line in source:
+            documents_before += 1
+            record = json.loads(line)
+            text = record.get("text", "")
+            if text in seen:
+                continue
+
+            seen.add(text)
+            destination.write(json.dumps({"text": text}, ensure_ascii=False) + "\n")
+            documents_after += 1
+
+    duplicates_removed = documents_before - documents_after
+    print(f"Documents before: {documents_before:,}")
+    print(f"Documents after: {documents_after:,}")
+    print(f"Duplicates removed: {duplicates_removed:,}")
+    print(f"Saved deduplicated corpus to {OUTPUT_FILE}")
 
 
 if __name__ == "__main__":
