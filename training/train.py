@@ -1,35 +1,123 @@
-"""Minimal training entry point. Replace the random batches with tokenized data."""
 import argparse
 from pathlib import Path
+import sys
+
 import torch
 import yaml
-from model import DecoderLM
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from model.model import TransformerLM
 from training.optimizer import build_optimizer
 from training.scheduler import build_scheduler
-from training.checkpoint import save_checkpoint
 
 
 def main() -> None:
+    # -----------------------------
+    # Load configuration
+    # -----------------------------
+
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=Path, default=Path("configs/10m.yaml"))
+
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=Path("configs/debug.yaml")
+    )
+
     args = parser.parse_args()
-    config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
+
+    with open(args.config, "r", encoding="utf-8") as file:
+        config = yaml.safe_load(file)
+
+
+    # -----------------------------
+    # Device
+    # -----------------------------
+
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    model = DecoderLM(**config["model"]).to(device)
-    optimizer = build_optimizer(model, config["training"]["learning_rate"], config["training"]["weight_decay"])
-    scheduler = build_scheduler(optimizer, config["training"]["warmup_steps"], config["training"]["steps"])
+
+    print("Device:", device)
+
+
+    # -----------------------------
+    # Model
+    # -----------------------------
+
+    model_config = config["model"]
+
+    model = TransformerLM(
+        vocab_size=model_config["vocab_size"],
+        d_model=model_config["d_model"],
+        n_layers=model_config["n_layers"],
+        n_heads=model_config["n_heads"],
+        ffn_hidden_size=model_config["hidden_dim"],
+        max_seq_len=model_config["context_length"],
+        dropout=model_config["dropout"],
+    ).to(device)
+
+
+    # -----------------------------
+    # Parameter count
+    # -----------------------------
+
+    total_params = sum(
+        parameter.numel()
+        for parameter in model.parameters()
+    )
+
+    print("Model parameters:", total_params)
+
+
+    # -----------------------------
+    # Optimizer
+    # -----------------------------
+
+    training_config = config["training"]
+
+    optimizer = build_optimizer(
+        model,
+        training_config["learning_rate"],
+        training_config["weight_decay"]
+    )
+
+
+    # -----------------------------
+    # Learning-rate scheduler
+    # -----------------------------
+
+    scheduler = build_scheduler(
+        optimizer,
+        training_config["warmup_steps"],
+        training_config["steps"]
+    )
+
+
+    # -----------------------------
+    # Initialization test
+    # -----------------------------
+
     model.train()
-    for step in range(config["training"]["steps"]):
-        tokens = torch.randint(config["model"]["vocab_size"], (config["training"]["batch_size"], config["model"]["context_length"] + 1), device=device)
-        _, loss = model(tokens[:, :-1], tokens[:, 1:])
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-        optimizer.step()
-        scheduler.step()
-        optimizer.zero_grad(set_to_none=True)
-        if step % config["training"]["log_every"] == 0:
-            print(f"step={step} loss={loss.item():.4f}")
-    save_checkpoint(Path("checkpoints/latest.pt"), model, optimizer, scheduler, config["training"]["steps"], config["model"])
+
+    batch_size = training_config["batch_size"]
+    context_length = model_config["context_length"]
+    vocab_size = model_config["vocab_size"]
+
+    test_input = torch.randint(
+        0,
+        vocab_size,
+        (batch_size, context_length),
+        device=device
+    )
+
+    with torch.no_grad():
+        logits = model(test_input)
+
+    print("Test input shape :", test_input.shape)
+    print("Test logits shape:", logits.shape)
+
+    print("Training setup initialized successfully.")
 
 
 if __name__ == "__main__":
