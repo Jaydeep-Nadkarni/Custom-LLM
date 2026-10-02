@@ -46,6 +46,6 @@ class TransformerLM(nn.Module):
         print("After final norm std:", x.std().item())
         logits = F.linear(
             x,
-            self.embedding.embedding.weight,
-        )
+            self.embedding.embedding.weight
+        ) / (self.d_model ** 0.5)
         return logits

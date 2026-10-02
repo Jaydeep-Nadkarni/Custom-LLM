@@ -48,12 +48,37 @@ model = TransformerLM(
     max_seq_len=context_length
 )
 
+embedding_weight = model.embedding.embedding.weight
+print("Embedding weight mean :", embedding_weight.mean().item())
+print("Embedding weight std  :", embedding_weight.std().item())
+print("Embedding weight min  :", embedding_weight.min().item())
+print("Embedding weight max  :", embedding_weight.max().item())
+
 
 # -----------------------------
 # Get one batch
 # -----------------------------
 
 inputs, targets = next(iter(dataloader))
+
+
+# -----------------------------
+# Embedding-only diagnostic
+# -----------------------------
+
+with torch.no_grad():
+    x = model.embedding(inputs)
+    x = model.norm(x)
+    test_logits = torch.nn.functional.linear(
+        x,
+        model.embedding.embedding.weight,
+    ) / (model.d_model ** 0.5)
+    test_loss = nn.CrossEntropyLoss()(
+        test_logits.reshape(-1, vocab_size),
+        targets.reshape(-1),
+    )
+
+print("Embedding-only loss:", test_loss.item())
 
 
 # -----------------------------
