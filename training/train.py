@@ -3,6 +3,7 @@ from pathlib import Path
 import sys
 
 import torch
+import torch.nn.functional as F
 import yaml
 from torch.utils.data import DataLoader
 
@@ -13,6 +14,7 @@ from data.dataset import TokenDataset
 from model.model import TransformerLM
 from training.optimizer import build_optimizer
 from training.scheduler import build_scheduler
+from training.checkpoint import save_checkpoint
 
 
 def main() -> None:
@@ -27,11 +29,17 @@ def main() -> None:
         type=Path,
         default=Path("configs/debug.yaml")
     )
+    parser.add_argument("--steps", type=int, default=None)
+    parser.add_argument("--checkpoint-every", type=int, default=1000)
+    parser.add_argument("--log-file", type=Path, default=Path("logs/training.log"))
 
     args = parser.parse_args()
 
     with open(args.config, "r", encoding="utf-8") as file:
         config = yaml.safe_load(file)
+
+    training_config = config["training"]
+    total_steps = args.steps or training_config["steps"]
 
 
     # -----------------------------
@@ -73,13 +81,6 @@ def main() -> None:
 
 
     # -----------------------------
-    # Training configuration
-    # -----------------------------
-
-    training_config = config["training"]
-
-
-    # -----------------------------
     # Dataset
     # -----------------------------
 
@@ -98,14 +99,6 @@ def main() -> None:
 
     print("Dataset size:", len(dataset))
     
-    inputs, targets = next(iter(dataloader))
-
-    print("Batch input shape :", inputs.shape)
-    print("Batch target shape:", targets.shape)
-    print("Batch input dtype :", inputs.dtype)
-    print("Batch target dtype:", targets.dtype)
-
-
     # -----------------------------
     # Optimizer
     # -----------------------------
@@ -124,34 +117,56 @@ def main() -> None:
     scheduler = build_scheduler(
         optimizer,
         training_config["warmup_steps"],
-        training_config["steps"]
+        total_steps
     )
 
 
-    # -----------------------------
-    # Initialization test
-    # -----------------------------
-
+    args.log_file.parent.mkdir(parents=True, exist_ok=True)
     model.train()
+    data_iterator = iter(dataloader)
+    with args.log_file.open("a", encoding="utf-8") as log_file:
+        for step in range(1, total_steps + 1):
+            try:
+                inputs, targets = next(data_iterator)
+            except StopIteration:
+                data_iterator = iter(dataloader)
+                inputs, targets = next(data_iterator)
 
-    batch_size = training_config["batch_size"]
-    context_length = model_config["context_length"]
-    vocab_size = model_config["vocab_size"]
+            inputs = inputs.to(device)
+            targets = targets.to(device)
+            optimizer.zero_grad(set_to_none=True)
 
-    test_input = torch.randint(
-        0,
-        vocab_size,
-        (batch_size, context_length),
-        device=device
-    )
+            logits = model(inputs)
+            loss = F.cross_entropy(
+                logits.reshape(-1, model_config["vocab_size"]),
+                targets.reshape(-1),
+            )
+            loss.backward()
+            gradient_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            optimizer.step()
+            scheduler.step()
 
-    with torch.no_grad():
-        logits = model(test_input)
+            learning_rate = optimizer.param_groups[0]["lr"]
+            message = (
+                f"step={step} loss={loss.item():.4f} "
+                f"lr={learning_rate:.8f} grad_norm={float(gradient_norm):.4f}"
+            )
+            if step == 1 or step % training_config["log_every"] == 0 or step == total_steps:
+                print(message)
+                log_file.write(message + "\n")
+                log_file.flush()
 
-    print("Test input shape :", test_input.shape)
-    print("Test logits shape:", logits.shape)
+            if step % args.checkpoint_every == 0 or step == total_steps:
+                save_checkpoint(
+                    Path("checkpoints/latest.pt"),
+                    model,
+                    optimizer,
+                    scheduler,
+                    step,
+                    config,
+                )
 
-    print("Training setup initialized successfully.")
+    print(f"Training smoke run completed: {total_steps} steps")
 
 
 if __name__ == "__main__":
