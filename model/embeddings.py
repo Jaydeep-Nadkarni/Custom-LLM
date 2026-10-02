@@ -1,11 +1,15 @@
 import torch
-from torch import nn
+import torch.nn as nn
 
 
-class TokenEmbeddings(nn.Module):
-    def __init__(self, vocab_size: int, d_model: int) -> None:
+class TokenEmbedding(nn.Module):
+    def __init__(self, vocab_size, hidden_size):
         super().__init__()
-        self.embedding = nn.Embedding(vocab_size, d_model)
 
-    def forward(self, token_ids: torch.Tensor) -> torch.Tensor:
-        return self.embedding(token_ids)
+        self.embedding = nn.Embedding(
+            num_embeddings=vocab_size,
+            embedding_dim=hidden_size
+        )
+
+    def forward(self, input_ids):
+        return self.embedding(input_ids)
