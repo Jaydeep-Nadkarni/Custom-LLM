@@ -62,6 +62,13 @@ inputs, targets = next(iter(dataloader))
 
 logits = model(inputs)
 
+print("Final logits std:", logits.std().item())
+
+print("Logits mean :", logits.mean().item())
+print("Logits std  :", logits.std().item())
+print("Logits min  :", logits.min().item())
+print("Logits max  :", logits.max().item())
+
 
 # -----------------------------
 # Calculate loss
