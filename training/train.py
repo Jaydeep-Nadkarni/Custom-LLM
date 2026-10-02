@@ -30,6 +30,9 @@ def main() -> None:
         default=Path("configs/debug.yaml")
     )
     parser.add_argument("--steps", type=int, default=None)
+    parser.add_argument("--batch-size", type=int, default=None)
+    parser.add_argument("--context-length", type=int, default=None)
+    parser.add_argument("--log-every", type=int, default=None)
     parser.add_argument("--checkpoint-every", type=int, default=1000)
     parser.add_argument("--log-file", type=Path, default=Path("logs/training.log"))
 
@@ -40,6 +43,9 @@ def main() -> None:
 
     training_config = config["training"]
     total_steps = args.steps or training_config["steps"]
+    batch_size = args.batch_size or training_config["batch_size"]
+    context_length = args.context_length or config["model"]["context_length"]
+    log_every = args.log_every or training_config["log_every"]
 
 
     # -----------------------------
@@ -93,7 +99,7 @@ def main() -> None:
 
     dataloader = DataLoader(
         dataset,
-        batch_size=training_config["batch_size"],
+        batch_size=batch_size,
         shuffle=True
     )
 
@@ -132,8 +138,8 @@ def main() -> None:
                 data_iterator = iter(dataloader)
                 inputs, targets = next(data_iterator)
 
-            inputs = inputs.to(device)
-            targets = targets.to(device)
+            inputs = inputs[:, :context_length].to(device)
+            targets = targets[:, :context_length].to(device)
             optimizer.zero_grad(set_to_none=True)
 
             logits = model(inputs)
@@ -151,7 +157,7 @@ def main() -> None:
                 f"step={step} loss={loss.item():.4f} "
                 f"lr={learning_rate:.8f} grad_norm={float(gradient_norm):.4f}"
             )
-            if step == 1 or step % training_config["log_every"] == 0 or step == total_steps:
+            if step == 1 or step % log_every == 0 or step == total_steps:
                 print(message)
                 log_file.write(message + "\n")
                 log_file.flush()
