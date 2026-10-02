@@ -1,14 +1,28 @@
 import torch
-from torch import nn
+import torch.nn as nn
 import torch.nn.functional as F
 
 
 class SwiGLU(nn.Module):
-    def __init__(self, d_model: int, hidden_dim: int) -> None:
+    def __init__(self, d_model: int, hidden_size: int):
         super().__init__()
-        self.gate = nn.Linear(d_model, hidden_dim, bias=False)
-        self.up = nn.Linear(d_model, hidden_dim, bias=False)
-        self.down = nn.Linear(hidden_dim, d_model, bias=False)
+        self.gate_proj = nn.Linear(
+            d_model,
+            hidden_size,
+            bias=False,
+        )
+        self.up_proj = nn.Linear(
+            d_model,
+            hidden_size,
+            bias=False,
+        )
+        self.down_proj = nn.Linear(
+            hidden_size,
+            d_model,
+            bias=False,
+        )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.down(F.silu(self.gate(x)) * self.up(x))
+    def forward(self, x):
+        gate = F.silu(self.gate_proj(x))
+        up = self.up_proj(x)
+        return self.down_proj(gate * up)
