@@ -1,13 +1,11 @@
 import argparse
 from pathlib import Path
-import sys
 
 import torch
 import yaml
+from torch.utils.data import DataLoader
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT))
-
+from data.dataset import TokenDataset
 from model.model import TransformerLM
 from training.optimizer import build_optimizer
 from training.scheduler import build_scheduler
