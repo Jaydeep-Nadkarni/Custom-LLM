@@ -13,3 +13,6 @@ training:
   weight_decay: 0.1
   warmup_steps: 500
   log_every: 100
+data:
+  train_inputs: data/tokenized/fineweb_train_inputs.npy
+  train_targets: data/tokenized/fineweb_train_targets.npy
