@@ -47,5 +47,5 @@ class TransformerLM(nn.Module):
         logits = F.linear(
             x,
             self.embedding.embedding.weight
-        ) / (self.d_model ** 0.5)
+        )
         return logits
