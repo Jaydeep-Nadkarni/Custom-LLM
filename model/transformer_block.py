@@ -1,17 +1,32 @@
-from torch import nn
+import torch
+import torch.nn as nn
 from .attention import CausalSelfAttention
 from .rmsnorm import RMSNorm
 from .swiglu import SwiGLU
 
 
 class TransformerBlock(nn.Module):
-    def __init__(self, d_model: int, n_heads: int, hidden_dim: int, dropout: float = 0.0) -> None:
+    def __init__(
+        self,
+        d_model: int,
+        n_heads: int,
+        ffn_hidden_size: int,
+        dropout: float = 0.0,
+    ):
         super().__init__()
-        self.attention_norm = RMSNorm(d_model)
-        self.attention = CausalSelfAttention(d_model, n_heads, dropout)
-        self.feed_forward_norm = RMSNorm(d_model)
-        self.feed_forward = SwiGLU(d_model, hidden_dim)
+        self.norm1 = RMSNorm(d_model)
+        self.attention = CausalSelfAttention(
+            d_model=d_model,
+            n_heads=n_heads,
+            dropout=dropout,
+        )
+        self.norm2 = RMSNorm(d_model)
+        self.ffn = SwiGLU(
+            d_model=d_model,
+            hidden_size=ffn_hidden_size,
+        )
 
-    def forward(self, x):
-        x = x + self.attention(self.attention_norm(x))
-        return x + self.feed_forward(self.feed_forward_norm(x))
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = x + self.attention(self.norm1(x))
+        x = x + self.ffn(self.norm2(x))
+        return x
