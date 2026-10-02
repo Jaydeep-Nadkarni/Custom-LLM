@@ -38,12 +38,9 @@ class TransformerLM(nn.Module):
 
     def forward(self, input_ids: torch.Tensor) -> torch.Tensor:
         x = self.embedding(input_ids)
-        print("Embedding std:", x.std().item())
-        for i, layer in enumerate(self.layers):
+        for layer in self.layers:
             x = layer(x)
-            print(f"After block {i + 1} std:", x.std().item())
         x = self.norm(x)
-        print("After final norm std:", x.std().item())
         logits = F.linear(
             x,
             self.embedding.embedding.weight
