@@ -29,3 +29,5 @@ output = embedding(input_ids)
 print("Input shape :", input_ids.shape)
 print("Output shape:", output.shape)
 print("Parameter count:", sum(parameter.numel() for parameter in embedding.parameters()))
+
+print("Embedding dimension:", output.shape[-1])
