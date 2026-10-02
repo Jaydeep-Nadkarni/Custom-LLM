@@ -97,6 +97,13 @@ def main() -> None:
     )
 
     print("Dataset size:", len(dataset))
+    
+    inputs, targets = next(iter(dataloader))
+
+    print("Batch input shape :", inputs.shape)
+    print("Batch target shape:", targets.shape)
+    print("Batch input dtype :", inputs.dtype)
+    print("Batch target dtype:", targets.dtype)
 
 
     # -----------------------------
