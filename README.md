@@ -20,3 +20,7 @@ pip install -r requirements.txt
 5. Generate text with `python inference/generate.py --checkpoint checkpoints/latest.pt --prompt "Hello"`.
 
 The model is a learning scaffold, not a production LLM. Start with the 10m configuration and a small corpus before scaling up.
+
+
+
+Jaydeep
