@@ -14,7 +14,7 @@ from data.dataset import TokenDataset
 from model.model import TransformerLM
 from training.optimizer import build_optimizer
 from training.scheduler import build_scheduler
-from training.checkpoint import save_checkpoint
+from training.checkpoint import load_checkpoint, save_checkpoint
 
 
 def main() -> None:
@@ -33,7 +33,9 @@ def main() -> None:
     parser.add_argument("--batch-size", type=int, default=None)
     parser.add_argument("--context-length", type=int, default=None)
     parser.add_argument("--log-every", type=int, default=None)
-    parser.add_argument("--checkpoint-every", type=int, default=1000)
+    parser.add_argument("--checkpoint-every", type=int, default=None)
+    parser.add_argument("--checkpoint-path", type=Path, default=Path("checkpoints/latest.pt"))
+    parser.add_argument("--resume-from", type=Path, default=None)
     parser.add_argument("--log-file", type=Path, default=Path("logs/training.log"))
 
     args = parser.parse_args()
@@ -46,6 +48,7 @@ def main() -> None:
     batch_size = args.batch_size or training_config["batch_size"]
     context_length = args.context_length or config["model"]["context_length"]
     log_every = args.log_every or training_config["log_every"]
+    checkpoint_every = args.checkpoint_every or training_config.get("checkpoint_every", 1000)
 
 
     # -----------------------------
@@ -127,11 +130,22 @@ def main() -> None:
     )
 
 
+    start_step = 0
+    if args.resume_from is not None:
+        start_step = load_checkpoint(
+            args.resume_from, model, optimizer, scheduler
+        )
+        if start_step >= total_steps:
+            raise ValueError(
+                f"Checkpoint is at step {start_step}, but --steps is {total_steps}"
+            )
+        print(f"Resuming from step {start_step}")
+
     args.log_file.parent.mkdir(parents=True, exist_ok=True)
     model.train()
     data_iterator = iter(dataloader)
     with args.log_file.open("a", encoding="utf-8") as log_file:
-        for step in range(1, total_steps + 1):
+        for step in range(start_step + 1, total_steps + 1):
             try:
                 inputs, targets = next(data_iterator)
             except StopIteration:
@@ -162,9 +176,9 @@ def main() -> None:
                 log_file.write(message + "\n")
                 log_file.flush()
 
-            if step % args.checkpoint_every == 0 or step == total_steps:
+            if step % checkpoint_every == 0 or step == total_steps:
                 save_checkpoint(
-                    Path("checkpoints/latest.pt"),
+                    args.checkpoint_path,
                     model,
                     optimizer,
                     scheduler,
